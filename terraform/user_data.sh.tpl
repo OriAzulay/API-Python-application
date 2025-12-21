@@ -1,85 +1,49 @@
 #!/bin/bash
 set -e
 
-# Update system
+# Update and install dependencies
 yum update -y
+amazon-linux-extras install docker -y
+yum install -y python3 python3-pip
 
-# Install Docker
-yum install -y docker
-systemctl start docker
-systemctl enable docker
+# Start Docker
+service docker start
 usermod -a -G docker ec2-user
 
-# Wait for Docker to be ready
-sleep 10
+# Create app directory
+mkdir -p /app
+cd /app
 
-# Create application directory
-mkdir -p /opt/app
-cd /opt/app
-
-# Create Dockerfile
-cat > Dockerfile << 'DOCKERFILE'
-# Multi-stage build for optimized image size
-
-# Stage 1: Build stage - install dependencies
-FROM python:3.11-slim as builder
-
-WORKDIR /app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Stage 2: Runtime stage - minimal image
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Copy only the installed packages from builder stage
-COPY --from=builder /root/.local /root/.local
-
-# Copy application code
-COPY app.py .
-
-# Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
-
-# Expose port 5000
-EXPOSE 5000
-
-# Run the application on port 5000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
-DOCKERFILE
+# Create app.py from Terraform template
+cat <<EOF > app.py
+${app_py_content}
+EOF
 
 # Create requirements.txt
-cat > requirements.txt << 'REQUIREMENTS'
+cat <<EOF > requirements.txt
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 pydantic>=2.5.0
-REQUIREMENTS
+EOF
 
-# Create app.py from embedded content
-cat > app.py << 'APPFILE'
-${app_py_content}
-APPFILE
+# Create Dockerfile
+cat <<EOF > Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY . .
+RUN pip install fastapi uvicorn
+EXPOSE 5000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
+EOF
 
-# Build Docker image
-docker build -t ${app_name}:latest .
-
-# Run the container
+# Build and run Docker container
+docker build -t ${app_name} .
 docker run -d \
   --name ${app_name} \
   -p 5000:5000 \
-  -e API_KEY=${api_key} \
-  --restart unless-stopped \
-  ${app_name}:latest
+  -e API_KEY="${api_key}" \
+  --restart always \
+  ${app_name}
 
 # Log completion
 echo "Application deployed successfully" > /var/log/app-deploy.log
-
-
