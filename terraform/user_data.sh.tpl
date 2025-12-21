@@ -28,10 +28,21 @@ EOF
 
 # Create Dockerfile
 cat <<EOF > Dockerfile
-FROM python:3.11-slim
+# Stage 1: Build stage
+FROM python:3.11-slim AS builder
 WORKDIR /app
-COPY . .
-RUN pip install fastapi uvicorn
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: Runtime stage
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local
+COPY app.py .
+ENV PATH=/root/.local/bin:\$PATH
 EXPOSE 5000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
 EOF

@@ -40,25 +40,31 @@ A Python FastAPI application with shared state management, logging, and API key 
 1. **Clone or navigate to the project directory**
 
 2. **Install dependencies**:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Set environment variable (optional)**:
+
    ```bash
    # Windows PowerShell
    $env:API_KEY="your-secret-api-key-12345"
-   
+
    # Linux/Mac
    export API_KEY="your-secret-api-key-12345"
    ```
+
    If not set, the default API key is `your-secret-api-key-12345`
 
 4. **Run the application**:
+
    ```bash
    python app.py
    ```
+
    Or using uvicorn directly:
+
    ```bash
    uvicorn app:app --host 0.0.0.0 --port 5000 --reload
    ```
@@ -75,6 +81,7 @@ A Python FastAPI application with shared state management, logging, and API key 
 Returns the current state of shared variables with metadata.
 
 **Response**:
+
 ```json
 {
   "counter": 0,
@@ -89,11 +96,13 @@ Returns the current state of shared variables with metadata.
 Updates the shared state (counter or message). Requires API key authentication.
 
 **Headers**:
+
 ```
 X-API-Key: your-secret-api-key-12345
 ```
 
 **Request Body**:
+
 ```json
 {
   "counter": 5,
@@ -102,6 +111,7 @@ X-API-Key: your-secret-api-key-12345
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -118,6 +128,7 @@ X-API-Key: your-secret-api-key-12345
 ```
 
 **Error Responses**:
+
 - `400 Bad Request`: Invalid input validation
 - `401 Unauthorized`: Missing or invalid API key
 
@@ -126,15 +137,18 @@ X-API-Key: your-secret-api-key-12345
 Returns paginated list of all updates.
 
 **Query Parameters**:
+
 - `page` (optional, default: 1): Page number
 - `limit` (optional, default: 10, max: 100): Number of logs per page
 
 **Example**:
+
 ```
 GET /logs?page=1&limit=10
 ```
 
 **Response**:
+
 ```json
 {
   "logs": [
@@ -173,6 +187,10 @@ docker run -d \
   fastapi-app:latest
 ```
 
+```One-line Command
+docker run -d --name fastapi-app -p 5000:5000 -e API_KEY="your-secret-api-key-12345" fastapi-app:latest
+```
+
 ### Access the Application
 
 - API: `http://localhost:5000`
@@ -198,11 +216,13 @@ docker rm fastapi-app
 ### Step 1: Build and Push Docker Image
 
 1. **Build the image**:
+
    ```bash
    docker build -t your-dockerhub-username/fastapi-app:latest .
    ```
 
 2. **Login to Docker Hub**:
+
    ```bash
    docker login
    ```
@@ -215,15 +235,17 @@ docker rm fastapi-app
 ### Step 2: Configure Terraform
 
 1. **Navigate to terraform directory**:
+
    ```bash
    cd terraform
    ```
 
 2. **Copy the example variables file**:
+
    ```bash
    # Windows PowerShell
    Copy-Item terraform.tfvars.example terraform.tfvars
-   
+
    # Linux/Mac
    cp terraform.tfvars.example terraform.tfvars
    ```
@@ -242,16 +264,19 @@ docker rm fastapi-app
 ### Step 3: Deploy
 
 1. **Initialize Terraform**:
+
    ```bash
    terraform init
    ```
 
 2. **Review the deployment plan**:
+
    ```bash
    terraform plan
    ```
 
 3. **Apply the configuration**:
+
    ```bash
    terraform apply
    ```
@@ -261,6 +286,7 @@ docker rm fastapi-app
 ### Step 4: Access the Deployed Application
 
 After deployment, Terraform will output the API URL. Access it at:
+
 - API: `http://<instance-ip>:5000`
 - Docs: `http://<instance-ip>:5000/docs`
 
@@ -277,11 +303,13 @@ terraform destroy
 ### Using curl
 
 1. **Get status**:
+
    ```bash
    curl http://localhost:5000/status
    ```
 
 2. **Update state**:
+
    ```bash
    curl -X POST http://localhost:5000/update \
      -H "X-API-Key: your-secret-api-key-12345" \
@@ -322,6 +350,7 @@ print(response.json())
 ## Database
 
 The application uses SQLite for persistent storage:
+
 - **Database file**: `app.db` (created automatically)
 - **Tables**:
   - `shared_state`: Current state of counter and message
@@ -340,16 +369,20 @@ The database file persists in the container's filesystem. For production, consid
 ## Troubleshooting
 
 ### Application won't start
+
 - Check if port 5000 is available
 - Verify Python version (3.11+)
 - Check database file permissions
 
 ### Docker issues
+
 - Ensure Docker is running
 - Check container logs: `docker logs fastapi-app`
 - Verify port mapping
+- **Container name conflict**: Run `docker rm -f fastapi-app` to remove the existing container before starting a new one.
 
 ### Terraform deployment issues
+
 - Verify AWS credentials: `aws sts get-caller-identity`
 - Check key pair exists in the specified region
 - Review security group rules
@@ -358,4 +391,3 @@ The database file persists in the container's filesystem. For production, consid
 ## License
 
 This project is provided as-is for educational and development purposes.
-
