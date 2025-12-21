@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is in .gitignore to keep secrets safe
+# 
+# Note: Your public IP is automatically detected - no need to specify it
+# Note: Docker image is built on EC2 - no need to push to registry
+
+aws_region     = "us-east-1"
+app_name       = "fastapi-app"
+instance_type  = "t2.micro"
+key_pair_name  = "your-key-pair-name"
+api_key        = "your-secret-api-key-12345"
