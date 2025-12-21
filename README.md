@@ -37,38 +37,27 @@ A Python FastAPI application with shared state management, logging, and API key 
 
 ### Setup
 
-1. **Clone or navigate to the project directory**
-
+1. **Navigate to the project directory**
 2. **Install dependencies**:
-
    ```bash
    pip install -r requirements.txt
    ```
-
 3. **Set environment variable (optional)**:
-
    ```bash
    # Windows PowerShell
-   $env:API_KEY="your-secret-api-key-12345"
-
+   $env:API_KEY="Wiz-12345"
    # Linux/Mac
-   export API_KEY="your-secret-api-key-12345"
+   export API_KEY="Wiz-12345"
    ```
-
    If not set, the default API key is `your-secret-api-key-12345`
-
 4. **Run the application**:
-
    ```bash
    python app.py
    ```
-
    Or using uvicorn directly:
-
    ```bash
    uvicorn app:app --host 0.0.0.0 --port 5000 --reload
    ```
-
 5. **Access the API**:
    - API Base URL: `http://localhost:5000`
    - Interactive API Docs: `http://localhost:5000/docs`
@@ -201,6 +190,13 @@ docker run -d --name fastapi-app -p 5000:5000 -e API_KEY="your-secret-api-key-12
 ```bash
 docker stop fastapi-app
 docker rm fastapi-app
+```
+
+### Run the container via Docker-Hub
+
+```bash
+docker pull oriazulay/fastapi-app:latest
+docker run oriazulay/fastapi-app:latest
 ```
 
 ## AWS EC2 Deployment with Terraform

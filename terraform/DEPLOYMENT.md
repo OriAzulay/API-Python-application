@@ -5,7 +5,8 @@ This guide walks you through deploying the FastAPI application to AWS EC2 using 
 ## Prerequisites
 
 1. **AWS Account** with appropriate permissions
-2. **AWS CLI** configured with credentials
+2. **AWS CLI** installed and configured
+   - **Download**: [https://aws.amazon.com/cli/](https://aws.amazon.com/cli/)
    ```bash
    aws configure
    ```
@@ -28,15 +29,17 @@ This guide walks you through deploying the FastAPI application to AWS EC2 using 
 ### Step 1: Configure Terraform Variables
 
 1. **Navigate to terraform directory**:
+
    ```bash
    cd terraform
    ```
 
 2. **Copy the example variables file**:
+
    ```bash
    # Windows PowerShell
    Copy-Item terraform.tfvars.example terraform.tfvars
-   
+
    # Linux/Mac
    cp terraform.tfvars.example terraform.tfvars
    ```
@@ -65,6 +68,7 @@ terraform plan
 ```
 
 Review what will be created:
+
 - EC2 instance (t2.micro)
 - Security group (restricted to your IP)
 - All necessary configurations
@@ -76,6 +80,7 @@ terraform apply
 ```
 
 Type `yes` when prompted. This will:
+
 1. Detect your public IP address
 2. Create security group allowing only your IP
 3. Launch EC2 instance
@@ -88,6 +93,7 @@ Type `yes` when prompted. This will:
 ### Step 5: Note the Outputs
 
 After deployment, Terraform will output:
+
 - `instance_public_ip`: Public IP address of the EC2 instance
 - `api_url`: Full API URL
 - `status_endpoint`: Status endpoint URL
@@ -100,12 +106,14 @@ After deployment, Terraform will output:
 ### Option 1: Using Verification Scripts
 
 **Linux/Mac:**
+
 ```bash
 chmod +x verify.sh
 ./verify.sh <EC2_PUBLIC_IP> <API_KEY>
 ```
 
 **Windows PowerShell:**
+
 ```powershell
 .\verify.ps1 -EC2IP <EC2_PUBLIC_IP> -APIKey <API_KEY>
 ```
@@ -113,11 +121,13 @@ chmod +x verify.sh
 ### Option 2: Manual Verification
 
 1. **Get initial status**:
+
    ```bash
    curl http://<EC2_PUBLIC_IP>:5000/status
    ```
 
 2. **Update state**:
+
    ```bash
    curl -X POST http://<EC2_PUBLIC_IP>:5000/update \
      -H "X-API-Key: your-secret-api-key-12345" \
@@ -126,6 +136,7 @@ chmod +x verify.sh
    ```
 
 3. **Verify updated status**:
+
    ```bash
    curl http://<EC2_PUBLIC_IP>:5000/status
    ```
@@ -142,12 +153,14 @@ To destroy all resources and avoid AWS charges:
 ### Option 1: Using Teardown Scripts
 
 **Linux/Mac:**
+
 ```bash
 chmod +x teardown.sh
 ./teardown.sh
 ```
 
 **Windows PowerShell:**
+
 ```powershell
 .\teardown.ps1
 ```
@@ -159,18 +172,36 @@ terraform destroy
 ```
 
 Type `yes` when prompted. This will:
+
 - Terminate the EC2 instance
 - Delete the security group
 - Clean up all resources
 
 ## Troubleshooting
 
+### Error: No valid credential sources found
+
+This means Terraform cannot find your AWS credentials.
+**Solution**: Run `aws configure` in your terminal and enter your Access Key ID and Secret Access Key.
+
+### Error: 'aws' is not recognized
+
+The AWS CLI is not installed.
+**Solution**: Install it from aws.amazon.com/cli or set `$env:AWS_ACCESS_KEY_ID` and `$env:AWS_SECRET_ACCESS_KEY` manually.
+
+### Error: InvalidClientTokenId
+
+The AWS Access Key ID provided is incorrect or inactive.
+**Solution**: Check for typos. Ensure you didn't paste the Secret Key into the Access Key ID field. Clear environment variables and try again.
+
 ### Cannot connect to API
 
 1. **Check security group**: Ensure your IP hasn't changed
+
    - If your IP changed, update the security group manually or re-run `terraform apply`
 
-2. **Check instance status**: 
+2. **Check instance status**:
+
    ```bash
    aws ec2 describe-instances --instance-ids <instance-id>
    ```
@@ -184,6 +215,7 @@ Type `yes` when prompted. This will:
 ### Application not starting
 
 1. **Check Docker logs**:
+
    ```bash
    ssh -i your-key.pem ec2-user@<EC2_PUBLIC_IP>
    docker ps -a
@@ -227,5 +259,3 @@ If your IP address changes after deployment:
 - Scale horizontally: Use Auto Scaling Groups
 - Add HTTPS: Use Application Load Balancer with ACM certificate
 - CI/CD: Integrate with GitHub Actions or AWS CodePipeline
-
-
