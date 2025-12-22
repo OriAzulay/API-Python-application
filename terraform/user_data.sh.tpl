@@ -25,6 +25,31 @@ EXPOSE 5000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
 EOF
 
-# Build and run the container
-docker build -t ${app_name} .
-docker run -d -p 5000:5000 -e API_KEY="${api_key}" --restart always --name ${app_name} ${app_name}
+# Create requirements.txt
+cat > requirements.txt << 'REQUIREMENTS'
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+REQUIREMENTS
+
+# Create app.py from embedded content
+cat > app.py << 'APPFILE'
+${app_py_content}
+APPFILE
+
+# Build Docker image
+docker build -t ${app_name}:latest .
+
+# Run the container
+docker run -d \
+  --name ${app_name} \
+  -p 5000:5000 \
+  -e API_KEY=${api_key} \
+  --restart unless-stopped \
+  ${app_name}:latest
+
+# Log completion
+echo "Application deployed successfully" > /var/log/app-deploy.log
+
+
+
