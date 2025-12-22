@@ -68,6 +68,7 @@ You'll be asked for:
 2. Click your username (top right) → **Security credentials**
 3. Scroll to **Access keys** section
 4. Click **Create access key** (if you don't have one)
+--> This access key is from IAM in aws console
 5. Download or copy:
    - **Access key ID** (starts with `AKIA...`)
    - **Secret access key** (long string - save this immediately, you can't see it again!)
