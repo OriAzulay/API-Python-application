@@ -1,60 +1,29 @@
 #!/bin/bash
-set -e
 
-# Update system
+# Update system and install Docker
 yum update -y
-
-# Install Docker
-yum install -y docker
-systemctl start docker
-systemctl enable docker
+amazon-linux-extras install docker -y
+service docker start
 usermod -a -G docker ec2-user
 
-# Wait for Docker to be ready
-sleep 10
+# Create app directory
+mkdir -p /app
+cd /app
 
-# Create application directory
-mkdir -p /opt/app
-cd /opt/app
+# Write app.py (content passed from Terraform)
+cat <<EOF > app.py
+${app_py_content}
+EOF
 
-# Create Dockerfile
-cat > Dockerfile << 'DOCKERFILE'
-# Multi-stage build for optimized image size
-
-# Stage 1: Build stage - install dependencies
-FROM python:3.11-slim as builder
-
-WORKDIR /app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Stage 2: Runtime stage - minimal image
+# Create a simple Dockerfile on the fly
+cat <<EOF > Dockerfile
 FROM python:3.11-slim
-
 WORKDIR /app
-
-# Copy only the installed packages from builder stage
-COPY --from=builder /root/.local /root/.local
-
-# Copy application code
 COPY app.py .
-
-# Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
-
-# Expose port 5000
+RUN pip install fastapi uvicorn
 EXPOSE 5000
-
-# Run the application on port 5000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
-DOCKERFILE
+EOF
 
 # Create requirements.txt
 cat > requirements.txt << 'REQUIREMENTS'
