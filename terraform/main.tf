@@ -10,14 +10,6 @@ terraform {
       source  = "hashicorp/http"
       version = "~> 3.0"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
-    local = {
-      source  = "hashicorp/local"
-      version = "~> 2.0"
-    }
   }
 }
 
@@ -44,25 +36,6 @@ data "aws_ami" "amazon_linux" {
     name   = "name"
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
-}
-
-# Generate a secure private key
-resource "tls_private_key" "generated" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-# Create the Key Pair in AWS using the generated public key
-resource "aws_key_pair" "generated" {
-  key_name   = "${var.app_name}-key"
-  public_key = tls_private_key.generated.public_key_openssh
-}
-
-# Save the private key to a local file (for SSH access)
-resource "local_file" "private_key" {
-  content         = tls_private_key.generated.private_key_pem
-  filename        = "${path.module}/${var.app_name}-key.pem"
-  file_permission = "0400"
 }
 
 # Security Group for EC2 instance
@@ -108,7 +81,7 @@ resource "aws_instance" "app_server" {
   instance_type = var.instance_type
 
   vpc_security_group_ids = [aws_security_group.app_sg.id]
-  key_name               = aws_key_pair.generated.key_name
+  key_name               = var.key_pair_name
 
   # User data script to install Docker, build and run the container
   user_data = templatefile("${path.module}/user_data.sh.tpl", {

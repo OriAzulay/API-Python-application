@@ -17,29 +17,6 @@ Write-Host "Base URL: $BaseURL" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Wait for service to become available
-Write-Host "Waiting for service to become available (this may take 2-3 minutes)..." -ForegroundColor Yellow
-$RetryCount = 0
-$MaxRetries = 40 # 40 * 5 seconds = ~3.5 minutes
-$ServiceUp = $false
-
-while (-not $ServiceUp -and $RetryCount -lt $MaxRetries) {
-    try {
-        $null = Invoke-RestMethod -Uri "${BaseURL}/status" -Method Get -ErrorAction Stop
-        $ServiceUp = $true
-        Write-Host "`n✓ Service is UP!" -ForegroundColor Green
-    } catch {
-        Write-Host "." -NoNewline -ForegroundColor DarkGray
-        Start-Sleep -Seconds 5
-        $RetryCount++
-    }
-}
-
-if (-not $ServiceUp) {
-    Write-Host "`n✗ Service failed to start within timeout. Check EC2 logs." -ForegroundColor Red
-    exit 1
-}
-
 # Test 1: GET /status - Initial state
 Write-Host "Test 1: GET /status (Initial State)" -ForegroundColor Yellow
 Write-Host "-----------------------------------" -ForegroundColor Yellow
@@ -135,5 +112,6 @@ try {
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "All verification tests PASSED! ✓" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Cyan
+
 
 

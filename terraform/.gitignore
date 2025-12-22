@@ -1,14 +1,43 @@
+# Terraform State Files
 *.tfstate
 *.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
+
+# Terraform Directory
 .terraform/
 .terraform.lock.hcl
+
+# Terraform Variables (contains secrets)
 terraform.tfvars
+*.tfvars
+!terraform.tfvars.example
 *.tfvars.backup
+
+# Terraform Plan Files
+*.tfplan
+tfplan
+*.plan
+
+# Crash Logs
 crash.log
+crash.*.log
+
+# Override Files
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Terraform RC files
+.terraformrc
+terraform.rc
 
+# AWS Private Keys (if stored locally)
+*.pem
+*.key
+fastapi-app-key.pem
 
+# Backup files
+*.backup
+*.bak
