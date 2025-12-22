@@ -83,3 +83,4 @@ docker run -d \
 echo "Application deployed successfully" > /var/log/app-deploy.log
 
 
+
