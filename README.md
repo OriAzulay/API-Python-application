@@ -28,7 +28,7 @@ A Python FastAPI application with shared state management, logging, and API key 
 └── README.md            # This file
 ```
 
-## Local Development
+## 🚀 Local Development
 
 ### Prerequisites
 
@@ -155,7 +155,7 @@ GET /logs?page=1&limit=10
 }
 ```
 
-## Docker Usage
+## 🚀 Docker Usage
 
 ### Build the Docker Image
 
@@ -185,7 +185,14 @@ docker stop fastapi-app
 docker rm fastapi-app
 ```
 
-## AWS EC2 Deployment with Terraform
+### Run the container via Docker-Hub
+
+```bash
+docker pull oriazulay/fastapi-app:latest
+docker run oriazulay/fastapi-app:latest
+```
+
+ ## 🚀 AWS EC2 Deployment with Terraform
 
 ### Prerequisites
 
@@ -196,165 +203,311 @@ docker rm fastapi-app
    aws sts get-caller-identity  # Verify credentials work
    ```
 3. **Terraform** installed (>= 1.0)
-   ```powershell
-   terraform --version
+4. **Docker Hub account** (or other container registry)
+5. **AWS Key Pair** for SSH access
+
+## 📋 Prerequisites Checklist
+
+-------------------------------------------------------
+Before starting, we need to verify you have everything needed.
+### Step 0.1: Check AWS CLI Installation
+Open PowerShell and run:
+```powershell
+aws --version
+```
+**Expected output:**
+```
+aws-cli/2.x.x Python/x.x.x Windows/10
+```
+**If you see an error:**
+- Install AWS CLI from: https://aws.amazon.com/cli/
+- Restart PowerShell after installation
+---
+### Step 0.2: Check AWS Credentials (Secret Keys)
+AWS credentials are stored in a file. Let's check if they exist:
+```powershell
+# Check if credentials file exists
+Test-Path "$env:USERPROFILE\.aws\credentials"
+
+# If it returns True, credentials exist
+# If it returns False, you need to configure AWS credentials
+```
+**If credentials exist, view them (optional - be careful!):**
+```powershell
+Get-Content "$env:USERPROFILE\.aws\credentials"
+```
+**What you should see:**
+```
+[default]
+aws_access_key_id = AKIA...
+aws_secret_access_key = ...
+```
+
+**If credentials DON'T exist, you need to configure them:**
+
+#### Option A: Using AWS CLI Configure
+```powershell
+aws configure
+```
+
+You'll be asked for:
+1. **AWS Access Key ID**: Your access key (starts with `AKIA...`)
+2. **AWS Secret Access Key**: Your secret key (long string)
+3. **Default region**: `us-east-1` (or your preferred region)
+4. **Default output format**: `json` (just press Enter)
+
+**Where to find your AWS credentials:**
+1. Log into AWS Console: https://console.aws.amazon.com/
+2. Click your username (top right) → **Security credentials**
+3. Scroll to **Access keys** section
+4. Click **Create access key** (if you don't have one)
+--> This access key is from IAM in aws console
+5. Download or copy:
+   - **Access key ID** (starts with `AKIA...`)
+   - **Secret access key** (long string - save this immediately, you can't see it again!)
+
+#### Option B: Check if credentials are set as environment variables
+```powershell
+$env:AWS_ACCESS_KEY_ID
+$env:AWS_SECRET_ACCESS_KEY
+```
+
+If these return values, your credentials are set via environment variables.
+
+### Step 0.3: Verify AWS Credentials Work
+
+Test if your credentials are valid:
+
+```powershell
+aws sts get-caller-identity
+```
+
+**Expected output:**
+```json
+{
+    "UserId": "AIDA...",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/your-username"
+}
+```
+
+**If you see an error:**
+- Your credentials are invalid or expired
+- Re-run `aws configure` with correct credentials
+- Or create new access keys in AWS Console
+
+
+-------------------------------------------------------
+
+### Step 1: Build and Push Docker Image
+
+1. **Build the image**:
+
+   ```bash
+   docker build -t your-dockerhub-username/fastapi-app:latest .
    ```
-4. **AWS Key Pair** created in your target region
-   - Create via AWS Console: EC2 → Key Pairs → Create key pair
-   - Or via CLI: `aws ec2 create-key-pair --region us-east-1 --key-name fastapi-app-key`
-   - Save the `.pem` file securely for SSH access
 
-### Key Features
+2. **Login to Docker Hub**:
 
-- ✅ **Automatic IP Detection**: Your public IP is automatically detected and used for security group rules
-- ✅ **Security**: Only allows inbound traffic from your machine's IP address
-- ✅ **Free Tier**: Uses t3.micro instance (free tier eligible)
-- ✅ **Docker Build**: Builds Docker image directly on EC2 (no registry needed)
-- ✅ **Multi-stage Build**: Optimized Docker image size
+   ```bash
+   docker login
+   ```
 
-### Step 1: Configure Terraform
+3. **Push the image**:
+   ```bash
+   docker push your-dockerhub-username/fastapi-app:latest
+   ```
+
+### Step 2: Configure Terraform
 
 1. **Navigate to terraform directory**:
    ```powershell
    cd terraform
    ```
 
-2. **Copy the example variables file**:
+2. **Verify Configuration File, Copy the example variables file**:
+
+   Check your `terraform.tfvars` file:
+
+   ```bash
+   Get-Content terraform.tfvars
+   ```
+
+   **Expected content:**
+   ```
+   aws_region     = "us-east-1"
+   app_name       = "fastapi-app"
+   instance_type  = "t2.micro"
+   key_pair_name  = "fastapi-app-key"
+   api_key        = "4VvjxmNUFLAdQkU0xcKcyWuFDvmPZptVCXRmgzxC" # Your API KEY..
+   ```
+
+   **If the file doesn't exist or is missing values:**
+   1. Copy the example file:
+      ```bash
+      Copy-Item terraform.tfvars.example terraform.tfvars
+      
+      ```Linux/Mac
+      cp terraform.tfvars.example terraform.tfvars
+
+   3. Edit `terraform.tfvars` with your values
+   4. **Important**: Make sure `key_pair_name` matches an existing EC2 key pair
+
+   ### step 2.1 -Verify the key pair exists in your AWS account:
+
    ```powershell
-   # Windows PowerShell
-   Copy-Item terraform.tfvars.example terraform.tfvars
+   aws ec2 describe-key-pairs --region us-east-1 --key-names fastapi-app-key
+   ```
+
+   **If you see the key pair:**
+   ```
+   {
+       "KeyPairs": [
+           {
+               "KeyName": "fastapi-app-key",
+               ...
+           }
+       ]
+   }
+   ```
+   ✅ Key pair exists - proceed to Step 3
+
+   **If you see an error:**
+   ```
+   An error occurred (InvalidKeyPair.NotFound)
+   ```
+   ❌ Key pair doesn't exist - create it:
    
-   # Linux/Mac
-   cp terraform.tfvars.example terraform.tfvars
+   ```powershell
+   # Create the key pair
+   aws ec2 create-key-pair --region us-east-1 --key-name fastapi-app-key --query 'KeyMaterial' --output text > fastapi-app-key.pem
+   
+   # Verify it was created
+   aws ec2 describe-key-pairs --region us-east-1 --key-names fastapi-app-key
    ```
 
-3. **Edit `terraform.tfvars`** with your values:
-   ```hcl
-   aws_region     = "us-east-1"           # Your preferred AWS region
-   app_name       = "fastapi-app"           # Application name
-   instance_type  = "t3.micro"              # Free tier eligible
-   key_pair_name  = "fastapi-app-key"       # Your AWS key pair name
-   api_key        = "your-secret-api-key-12345"  # API key for authentication
-   ```
-
-   **Note**: Your public IP is automatically detected - no need to specify it manually.
-
-### Step 2: Verify Prerequisites
-
-Before deploying, verify everything is set up correctly:
-
-```powershell
-# Check AWS credentials
-aws sts get-caller-identity
-
-# Verify key pair exists
-aws ec2 describe-key-pairs --region us-east-1 --key-names fastapi-app-key
-```
+   **Note:** The `.pem` file is your private key - keep it secure! You'll need it for SSH access.
 
 ### Step 3: Deploy
-
+----------------------------
 1. **Initialize Terraform**:
    ```powershell
    terraform init
    ```
-   This downloads the required providers (AWS, HTTP).
+   **Expected output:**
+   ```
+   Initializing the backend...
+   Initializing provider plugins...
+   - Finding hashicorp/aws versions matching "~> 5.0"...
+   - Finding hashicorp/http versions matching "~> 3.0"...
+   - Installing hashicorp/aws v5.x.x...
+   - Installing hashicorp/http v3.x.x...
+   
+   Terraform has been successfully initialized!
+   ```
+   
+   **If you see errors:**
+   - Check your internet connection
+   - Verify Terraform is installed correctly
+   - Check if you're in the correct directory
+   
+   **Time:** ~30 seconds to 1 minute
 
-2. **Validate configuration**:
+   **Validate your Terraform configuration:**
+
    ```powershell
    terraform validate
    ```
-   Should return: `Success! The configuration is valid.`
-
-3. **Review the deployment plan** (dry run):
-   ```powershell
-   terraform plan
+   **Expected output:**
    ```
-   Review what will be created:
-   - EC2 instance (t3.micro)
-   - Security group (restricted to your IP)
-   - All necessary configurations
+   Success! The configuration is valid.
+   ```
+   
+   **If you see errors:**
+   - Read the error message carefully
+   - Common issues:
+     - Missing variables in `terraform.tfvars`
+     - Syntax errors in `.tf` files
+     - Missing required providers
+   
+----------------------------
 
-4. **Apply the configuration**:
-   ```powershell
+2. **Review the deployment plan**:
+
+  Preview what Terraform will create (this doesn't actually create anything):
+
+```powershell
+terraform plan
+```
+
+**What to look for:**
+- Plan shows resources that will be created:
+  - `+ aws_security_group.app_sg` (will be created)
+  - `+ aws_instance.app_server` (will be created)
+- Plan shows outputs that will be available:
+  - `+ instance_public_ip`
+  - `+ api_url`
+  - etc.
+
+**Expected output summary:**
+```
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + api_url             = (known after apply)
+  + instance_public_ip  = (known after apply)
+  ...
+```
+
+**Review the plan carefully:**
+- ✅ Check that `key_name` matches your key pair
+- ✅ Check that `instance_type` is `t2.micro` (free tier)
+- ✅ Check that security group allows your IP only
+
+**If everything looks good, proceed to Step 7.**
+
+**Time:** ~10-30 seconds
+
+----------------------------
+
+3. **Apply the configuration**:
+
+   ```bash
    terraform apply
    ```
-   Type `yes` when prompted.
+**What happens:**
+1. Terraform shows the plan again
+2. Prompts: `Do you want to perform these actions?`
+3. **Type:** `yes` and press Enter
 
-5. **Wait for deployment** (~3-5 minutes):
-   - EC2 instance launches (~1-2 minutes)
-   - Docker installs (~1 minute)
-   - Application builds and starts (~1-2 minutes)
+**⚠️ IMPORTANT:**
+- **Save the `instance_public_ip` value!** You'll need it for testing
+- **Deployment takes 3-5 minutes** - be patient!
+- The EC2 instance needs time to:
+  1. Launch (~1-2 minutes)
+  2. Install Docker (~1 minute)
+  3. Build and start the application (~1-2 minutes)
 
-### Step 4: Get Instance Information
+**Time:** 3-5 minutes total
 
-After deployment, get the instance IP and endpoints:
 
-```powershell
-# Get instance IP
-terraform output instance_public_ip
+----------------------------
 
-# Get all outputs
-terraform output
-```
+4. **Note the outputs** (instance IP, API URL, etc.)
 
-**Outputs include**:
-- `instance_public_ip`: Public IP address
-- `api_url`: Full API URL
-- `status_endpoint`: Status endpoint URL
-- `update_endpoint`: Update endpoint URL
-- `logs_endpoint`: Logs endpoint URL
+### Step 4: Access the Deployed Application
 
-### Step 5: Test the Application
+**Wait 2-3 minutes after `terraform apply` completes** before testing.
 
-**Wait 2-3 minutes after deployment** for the application to fully start, then test:
+The application needs time to:
+- Install Docker on the EC2 instance
+- Build the Docker image
+- Start the container
 
-#### Test 1: Get Status
-```powershell
-$ip = terraform output -raw instance_public_ip
-Invoke-RestMethod -Uri ("http://{0}:5000/status" -f $ip)
-```
+After deployment, Terraform will output the API URL. Access it at:
 
-Or using subexpression:
-```powershell
-Invoke-RestMethod -Uri "http://$(terraform output -raw instance_public_ip):5000/status"
-```
-
-#### Test 2: Update State
-```powershell
-$ip = terraform output -raw instance_public_ip
-$apiKey = "your-secret-api-key-12345"
-
-$headers = @{
-    "X-API-Key" = $apiKey
-    "Content-Type" = "application/json"
-}
-
-$body = @{
-    counter = 42
-    message = "Hello from Terraform deployment!"
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri ("http://{0}:5000/update" -f $ip) -Method Post -Headers $headers -Body $body
-```
-
-#### Test 3: Get Logs
-```powershell
-$ip = terraform output -raw instance_public_ip
-Invoke-RestMethod -Uri ("http://{0}:5000/logs?page=1&limit=10" -f $ip)
-```
-
-#### Test 4: Open API Documentation
-Open in your browser:
-```
-http://<INSTANCE_IP>:5000/docs
-```
-
-### Step 6: Access the Deployed Application
-
-After deployment, access:
-- **API**: `http://<instance-ip>:5000`
-- **Interactive Docs**: `http://<instance-ip>:5000/docs`
-- **Alternative Docs**: `http://<instance-ip>:5000/redoc`
+- API: `http://<instance-ip>:5000`
+- Docs: `http://<instance-ip>:5000/docs`
 
 ### Step 7: Teardown
 
