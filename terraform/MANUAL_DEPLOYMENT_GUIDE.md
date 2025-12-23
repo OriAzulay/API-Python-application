@@ -438,6 +438,11 @@ $body = @{
 Invoke-RestMethod -Uri "http://$ip:5000/update" -Method Post -Headers $headers -Body $body
 ```
 
+```Or one line : 
+$apiKey = "your-secret-api-key-12345"
+Invoke-RestMethod -Uri "http://$(terraform output -raw instance_public_ip):5000/update" -Method Post -Headers @{"X-API-Key"=$apiKey; "Content-Type"="application/json"} -Body (@{counter=42; message="Hello from Terraform deployment!"} | ConvertTo-Json) | ConvertTo-Json
+```
+
 **Expected response:**
 ```json
 {
