@@ -236,50 +236,185 @@ docker run oriazulay/fastapi-app:latest
    cd terraform
    ```
 
-2. **Copy the example variables file**:
+2. **Verify Configuration File, Copy the example variables file**:
+
+   Check your `terraform.tfvars` file:
 
    ```bash
-   # Windows PowerShell
-   Copy-Item terraform.tfvars.example terraform.tfvars
-
-   # Linux/Mac
-   cp terraform.tfvars.example terraform.tfvars
+   Get-Content terraform.tfvars
    ```
 
-3. **Edit `terraform.tfvars`** with your values:
-   ```hcl
+   **Expected content:**
+   ```
    aws_region     = "us-east-1"
    app_name       = "fastapi-app"
    instance_type  = "t2.micro"
-   key_pair_name  = "your-aws-key-pair-name"
-   ssh_cidr       = "YOUR_IP/32"  # Restrict SSH access to your IP
-   docker_image   = "your-dockerhub-username/fastapi-app:latest"
-   api_key        = "your-secret-api-key-12345"
+   key_pair_name  = "fastapi-app-key"
+   api_key        = "4VvjxmNUFLAdQkU0xcKcyWuFDvmPZptVCXRmgzxC" # Your API KEY..
    ```
 
-### Step 3: Deploy
+   **If the file doesn't exist or is missing values:**
+   1. Copy the example file:
+      # powershell
+      Copy-Item terraform.tfvars.example terraform.tfvars
+      
+      # Linux/Mac
+      cp terraform.tfvars.example terraform.tfvars
 
+   3. Edit `terraform.tfvars` with your values
+   4. **Important**: Make sure `key_pair_name` matches an existing EC2 key pair
+
+   ### step 2.1 -Verify the key pair exists in your AWS account:
+
+   ```powershell
+   aws ec2 describe-key-pairs --region us-east-1 --key-names fastapi-app-key
+   ```
+
+   **If you see the key pair:**
+   ```
+   {
+       "KeyPairs": [
+           {
+               "KeyName": "fastapi-app-key",
+               ...
+           }
+       ]
+   }
+   ```
+   ✅ Key pair exists - proceed to Step 3
+
+   **If you see an error:**
+   ```
+   An error occurred (InvalidKeyPair.NotFound)
+   ```
+   ❌ Key pair doesn't exist - create it:
+   
+   ```powershell
+   # Create the key pair
+   aws ec2 create-key-pair --region us-east-1 --key-name fastapi-app-key --query 'KeyMaterial' --output text > fastapi-app-key.pem
+   
+   # Verify it was created
+   aws ec2 describe-key-pairs --region us-east-1 --key-names fastapi-app-key
+   ```
+
+   **Note:** The `.pem` file is your private key - keep it secure! You'll need it for SSH access.
+
+### Step 3: Deploy
+----------------------------
 1. **Initialize Terraform**:
 
    ```bash
    terraform init
    ```
+   **Expected output:**
+   ```
+   Initializing the backend...
+   Initializing provider plugins...
+   - Finding hashicorp/aws versions matching "~> 5.0"...
+   - Finding hashicorp/http versions matching "~> 3.0"...
+   - Installing hashicorp/aws v5.x.x...
+   - Installing hashicorp/http v3.x.x...
+   
+   Terraform has been successfully initialized!
+   ```
+   
+   **If you see errors:**
+   - Check your internet connection
+   - Verify Terraform is installed correctly
+   - Check if you're in the correct directory
+   
+   **Time:** ~30 seconds to 1 minute
+
+   **Validate your Terraform configuration:**
+
+   ```powershell
+   terraform validate
+   ```
+   **Expected output:**
+   ```
+   Success! The configuration is valid.
+   ```
+   
+   **If you see errors:**
+   - Read the error message carefully
+   - Common issues:
+     - Missing variables in `terraform.tfvars`
+     - Syntax errors in `.tf` files
+     - Missing required providers
+   
+----------------------------
 
 2. **Review the deployment plan**:
 
-   ```bash
-   terraform plan
-   ```
+  Preview what Terraform will create (this doesn't actually create anything):
+
+```powershell
+terraform plan
+```
+
+**What to look for:**
+- Plan shows resources that will be created:
+  - `+ aws_security_group.app_sg` (will be created)
+  - `+ aws_instance.app_server` (will be created)
+- Plan shows outputs that will be available:
+  - `+ instance_public_ip`
+  - `+ api_url`
+  - etc.
+
+**Expected output summary:**
+```
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + api_url             = (known after apply)
+  + instance_public_ip  = (known after apply)
+  ...
+```
+
+**Review the plan carefully:**
+- ✅ Check that `key_name` matches your key pair
+- ✅ Check that `instance_type` is `t2.micro` (free tier)
+- ✅ Check that security group allows your IP only
+
+**If everything looks good, proceed to Step 7.**
+
+**Time:** ~10-30 seconds
+
+----------------------------
 
 3. **Apply the configuration**:
 
    ```bash
    terraform apply
    ```
+**What happens:**
+1. Terraform shows the plan again
+2. Prompts: `Do you want to perform these actions?`
+3. **Type:** `yes` and press Enter
+
+**⚠️ IMPORTANT:**
+- **Save the `instance_public_ip` value!** You'll need it for testing
+- **Deployment takes 3-5 minutes** - be patient!
+- The EC2 instance needs time to:
+  1. Launch (~1-2 minutes)
+  2. Install Docker (~1 minute)
+  3. Build and start the application (~1-2 minutes)
+
+**Time:** 3-5 minutes total
+
+
+----------------------------
 
 4. **Note the outputs** (instance IP, API URL, etc.)
 
 ### Step 4: Access the Deployed Application
+
+**Wait 2-3 minutes after `terraform apply` completes** before testing.
+
+The application needs time to:
+- Install Docker on the EC2 instance
+- Build the Docker image
+- Start the container
 
 After deployment, Terraform will output the API URL. Access it at:
 
