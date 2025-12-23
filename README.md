@@ -215,13 +215,6 @@ Open PowerShell and run:
 ```powershell
 aws --version
 ```
-**Expected output:**
-```
-aws-cli/2.x.x Python/x.x.x Windows/10
-```
-**If you see an error:**
-- Install AWS CLI from: https://aws.amazon.com/cli/
-- Restart PowerShell after installation
 ---
 ### Step 0.2: Check AWS Credentials (Secret Keys)
 AWS credentials are stored in a file. Let's check if they exist:
@@ -251,8 +244,8 @@ aws configure
 ```
 
 You'll be asked for:
-1. **AWS Access Key ID**: Your access key (starts with `AKIA...`)
-2. **AWS Secret Access Key**: Your secret key (long string)
+1. **AWS Access Key ID**: Your access key (starts with `AKIA...`) --> from IAM
+2. **AWS Secret Access Key**: Your secret key (long string) --> from IAM downloaded
 3. **Default region**: `us-east-1` (or your preferred region)
 4. **Default output format**: `json` (just press Enter)
 
@@ -339,7 +332,7 @@ aws sts get-caller-identity
    app_name       = "fastapi-app"
    instance_type  = "t2.micro"
    key_pair_name  = "fastapi-app-key"
-   api_key        = "4VvjxmNUFLAdQkU0xcKcyWuFDvmPZptVCXRmgzxC" # Your API KEY..
+   api_key        = "your-secret-api-key-12345" # Your API KEY..
    ```
 
    **If the file doesn't exist or is missing values:**
