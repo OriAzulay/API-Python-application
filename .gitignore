@@ -71,8 +71,8 @@ TEST_RESULTS.md
 terraform.tfstate
 terraform.tfstate.backup
 *.tfvars
-!terraform.tfvars.example
 terraform.tfvars
+terraform.tfvars.example
 *.tfvars.backup
 crash.log
 override.tf
