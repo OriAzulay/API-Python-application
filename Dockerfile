@@ -17,10 +17,6 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # Stage 2: Runtime stage - minimal image
 FROM python:3.11-slim
 
-# Set environment variables for optimization
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
 WORKDIR /app
 
 # Copy only the installed packages from builder stage

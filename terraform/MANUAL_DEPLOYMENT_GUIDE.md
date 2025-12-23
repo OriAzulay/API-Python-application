@@ -157,7 +157,7 @@ aws_region     = "us-east-1"
 app_name       = "fastapi-app"
 instance_type  = "t2.micro"
 key_pair_name  = "fastapi-app-key"
-api_key        = "4VvjxmNUFLAdQkU0xcKcyWuFDvmPZptVCXRmgzxC"
+api_key        = "4VvjxmNUFLAdQkU0xcKcyWuFDvmPZptVCXRmgzxC" # Your API KEY..
 ```
 
 **If the file doesn't exist or is missing values:**

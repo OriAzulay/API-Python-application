@@ -8,7 +8,6 @@ from typing import Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Depends, Query
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator, model_validator
 import sqlite3
 import uvicorn
