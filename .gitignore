@@ -2,19 +2,127 @@
 __pycache__/
 *.py[cod]
 *$py.class
-venv/
-.venv/
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
 
-# Database
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+.ENV
+.env
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Application specific
 *.db
+*.sqlite
+*.sqlite3
+app.db
+
+# AWS Credentials & Secrets (CRITICAL - DO NOT COMMIT!)
+*.csv
+rootkey.csv
+*_accessKeys.csv
+terraform-user_accessKeys.csv
+*.pem
+*.key
+fastapi-app-key.pem
+*.pem.key
+session-key.pem
+
+TEST_SUMMARY.md
+TEST_RESULTS.md
+
+
 
 # Terraform
 .terraform/
-*.tfstate
-*.tfstate.backup
-terraform.tfvars
 .terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+!terraform.tfvars.example
+terraform.tfvars
+*.tfvars.backup
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+tfplan
+*.tfplan
+.terraformrc
+terraform.rc
 
-# IDE
-.vscode/
-.idea/
+# Docker
+.dockerignore
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
