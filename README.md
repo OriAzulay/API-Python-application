@@ -28,7 +28,7 @@ A Python FastAPI application with shared state management, logging, and API key 
 └── README.md            # This file
 ```
 
-## Local Development
+## 🚀 Local Development
 
 ### Prerequisites
 
@@ -158,7 +158,7 @@ GET /logs?page=1&limit=10
 }
 ```
 
-## Docker Usage
+## 🚀 Docker Usage
 
 ### Build the Docker Image
 
@@ -199,7 +199,7 @@ docker pull oriazulay/fastapi-app:latest
 docker run oriazulay/fastapi-app:latest
 ```
 
-## AWS EC2 Deployment with Terraform
+ ## 🚀 AWS EC2 Deployment with Terraform
 
 ### Prerequisites
 
@@ -208,6 +208,99 @@ docker run oriazulay/fastapi-app:latest
 3. **Terraform** installed (>= 1.0)
 4. **Docker Hub account** (or other container registry)
 5. **AWS Key Pair** for SSH access
+
+## 📋 Prerequisites Checklist
+
+-------------------------------------------------------
+Before starting, we need to verify you have everything needed.
+### Step 0.1: Check AWS CLI Installation
+Open PowerShell and run:
+```powershell
+aws --version
+```
+**Expected output:**
+```
+aws-cli/2.x.x Python/x.x.x Windows/10
+```
+**If you see an error:**
+- Install AWS CLI from: https://aws.amazon.com/cli/
+- Restart PowerShell after installation
+---
+### Step 0.2: Check AWS Credentials (Secret Keys)
+AWS credentials are stored in a file. Let's check if they exist:
+```powershell
+# Check if credentials file exists
+Test-Path "$env:USERPROFILE\.aws\credentials"
+
+# If it returns True, credentials exist
+# If it returns False, you need to configure AWS credentials
+```
+**If credentials exist, view them (optional - be careful!):**
+```powershell
+Get-Content "$env:USERPROFILE\.aws\credentials"
+```
+**What you should see:**
+```
+[default]
+aws_access_key_id = AKIA...
+aws_secret_access_key = ...
+```
+
+**If credentials DON'T exist, you need to configure them:**
+
+#### Option A: Using AWS CLI Configure
+```powershell
+aws configure
+```
+
+You'll be asked for:
+1. **AWS Access Key ID**: Your access key (starts with `AKIA...`)
+2. **AWS Secret Access Key**: Your secret key (long string)
+3. **Default region**: `us-east-1` (or your preferred region)
+4. **Default output format**: `json` (just press Enter)
+
+**Where to find your AWS credentials:**
+1. Log into AWS Console: https://console.aws.amazon.com/
+2. Click your username (top right) → **Security credentials**
+3. Scroll to **Access keys** section
+4. Click **Create access key** (if you don't have one)
+--> This access key is from IAM in aws console
+5. Download or copy:
+   - **Access key ID** (starts with `AKIA...`)
+   - **Secret access key** (long string - save this immediately, you can't see it again!)
+
+#### Option B: Check if credentials are set as environment variables
+```powershell
+$env:AWS_ACCESS_KEY_ID
+$env:AWS_SECRET_ACCESS_KEY
+```
+
+If these return values, your credentials are set via environment variables.
+
+### Step 0.3: Verify AWS Credentials Work
+
+Test if your credentials are valid:
+
+```powershell
+aws sts get-caller-identity
+```
+
+**Expected output:**
+```json
+{
+    "UserId": "AIDA...",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/your-username"
+}
+```
+
+**If you see an error:**
+- Your credentials are invalid or expired
+- Re-run `aws configure` with correct credentials
+- Or create new access keys in AWS Console
+
+
+-------------------------------------------------------
 
 ### Step 1: Build and Push Docker Image
 
@@ -255,10 +348,10 @@ docker run oriazulay/fastapi-app:latest
 
    **If the file doesn't exist or is missing values:**
    1. Copy the example file:
-      # powershell
+      ```bash
       Copy-Item terraform.tfvars.example terraform.tfvars
       
-      # Linux/Mac
+      ```Linux/Mac
       cp terraform.tfvars.example terraform.tfvars
 
    3. Edit `terraform.tfvars` with your values
