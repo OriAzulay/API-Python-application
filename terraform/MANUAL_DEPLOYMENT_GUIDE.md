@@ -393,6 +393,10 @@ $ip = terraform output -raw instance_public_ip
 Invoke-RestMethod -Uri "http://$ip:5000/status"
 ```
 
+```or try 
+Invoke-RestMethod -Uri "http://$(terraform output -raw instance_public_ip):5000/status"
+```
+
 **Expected response:**
 ```json
 {
@@ -412,7 +416,7 @@ Invoke-RestMethod -Uri "http://$ip:5000/status"
 
 ```powershell
 $ip = terraform output -raw instance_public_ip
-$apiKey = "4VvjxmNUFLAdQkU0xcKcyWuFDvmPZptVCXRmgzxC"
+$apiKey = "********" # Your API KEY
 
 $headers = @{
     "X-API-Key" = $apiKey
