@@ -390,11 +390,18 @@ terraform output
 
 ```powershell
 $ip = terraform output -raw instance_public_ip
-Invoke-RestMethod -Uri "http://$ip:5000/status"
+Write-Host "Testing IP: $ip"  # Verify the IP was captured
+Invoke-RestMethod -Uri "http://$ip:5000/status" | ConvertTo-Json
 ```
 
-```or try 
-Invoke-RestMethod -Uri "http://$(terraform output -raw instance_public_ip):5000/status"
+**Option 2: One-liner (works from terraform directory)**
+```powershell
+Invoke-RestMethod -Uri "http://$(terraform output -raw instance_public_ip):5000/status" | ConvertTo-Json
+```
+
+**Option 3: Direct IP (if you know the IP address)**
+```powershell
+Invoke-RestMethod -Uri "http://18.207.240.195:5000/status" | ConvertTo-Json
 ```
 
 **Expected response:**
@@ -402,7 +409,7 @@ Invoke-RestMethod -Uri "http://$(terraform output -raw instance_public_ip):5000/
 {
   "counter": 0,
   "message": "",
-  "timestamp": "2024-...",
+  "timestamp": "2025-...",
   "uptime_seconds": 123.45
 }
 ```
