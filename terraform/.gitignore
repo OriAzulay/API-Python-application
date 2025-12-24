@@ -1,19 +1,17 @@
-# Terraform State Files
+# Terraform State Files (contains sensitive data)
 *.tfstate
 *.tfstate.*
-terraform.tfstate
-terraform.tfstate.backup
 
 # Terraform Directory
 .terraform/
-.terraform.lock.hcl
 
 # Terraform Variables (contains secrets)
 terraform.tfvars
-*.tfvars
+*.auto.tfvars
+
+# Keep example file
 !terraform.tfvars.example
-*.tfvars.backup
-terraform.tfvars.example 
+
 # Terraform Plan Files
 *.tfplan
 tfplan
@@ -23,7 +21,7 @@ tfplan
 crash.log
 crash.*.log
 
-# Override Files
+# Override Files (local overrides)
 override.tf
 override.tf.json
 *_override.tf
@@ -33,11 +31,13 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# AWS Private Keys (if stored locally)
+# AWS Private Keys
 *.pem
 *.key
-fastapi-app-key.pem
 
 # Backup files
 *.backup
 *.bak
+
+# NOTE: .terraform.lock.hcl should be COMMITTED
+# It ensures consistent provider versions across team members
