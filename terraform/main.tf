@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/http"
       version = "~> 3.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -36,6 +40,93 @@ data "aws_ami" "amazon_linux" {
     name   = "name"
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
+}
+
+# S3 Bucket for application files
+resource "aws_s3_bucket" "app_files" {
+  bucket = "${var.app_name}-files-${random_id.bucket_suffix.hex}"
+  
+  tags = {
+    Name = "${var.app_name}-files"
+  }
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "aws_s3_bucket_public_access_block" "app_files" {
+  bucket = aws_s3_bucket.app_files.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets  = true
+}
+
+# Upload app.py to S3
+resource "aws_s3_object" "app_py" {
+  bucket = aws_s3_bucket.app_files.id
+  key    = "app.py"
+  source = "${path.module}/../app.py"
+  etag   = filemd5("${path.module}/../app.py")
+}
+
+# Upload Dockerfile to S3
+resource "aws_s3_object" "dockerfile" {
+  bucket = aws_s3_bucket.app_files.id
+  key    = "Dockerfile"
+  source = "${path.module}/../Dockerfile"
+  etag   = filemd5("${path.module}/../Dockerfile")
+}
+
+# Upload requirements.txt to S3
+resource "aws_s3_object" "requirements" {
+  bucket = aws_s3_bucket.app_files.id
+  key    = "requirements.txt"
+  source = "${path.module}/../requirements.txt"
+  etag   = filemd5("${path.module}/../requirements.txt")
+}
+
+# IAM role for EC2 to access S3
+resource "aws_iam_role" "ec2_s3_role" {
+  name = "${var.app_name}-ec2-s3-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "ec2_s3_policy" {
+  name = "${var.app_name}-ec2-s3-policy"
+  role = aws_iam_role.ec2_s3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "${aws_s3_bucket.app_files.arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "ec2_s3_profile" {
+  name = "${var.app_name}-ec2-s3-profile"
+  role = aws_iam_role.ec2_s3_role.name
 }
 
 # Security Group for EC2 instance
@@ -83,13 +174,13 @@ resource "aws_instance" "app_server" {
   vpc_security_group_ids = [aws_security_group.app_sg.id]
   key_name               = var.key_pair_name
 
+  iam_instance_profile = aws_iam_instance_profile.ec2_s3_profile.name
+
   # User data script to install Docker, build and run the container
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
-    app_name           = var.app_name
-    api_key            = var.api_key
-    app_py_content     = file("${path.module}/../app.py")
-    dockerfile_content = file("${path.module}/../Dockerfile")
-    requirements_content = file("${path.module}/../requirements.txt")
+    app_name        = var.app_name
+    api_key         = var.api_key
+    s3_bucket_name  = aws_s3_bucket.app_files.bucket
   })
 
   tags = {
