@@ -335,16 +335,9 @@ aws sts get-caller-identity
    api_key        = "your-secret-api-key-12345" # Your API KEY..
    ```
 
-   **If the file doesn't exist or is missing values:**
-   1. Copy the example file:
-      ```bash
-      Copy-Item terraform.tfvars.example terraform.tfvars
-      
-      ```Linux/Mac
-      cp terraform.tfvars.example terraform.tfvars
-
-   3. Edit `terraform.tfvars` with your values
-   4. **Important**: Make sure `key_pair_name` matches an existing EC2 key pair
+   **If the file doesn't exist or is missing values**
+   1. Edit `terraform.tfvars` with your values
+   2. **Important**: Make sure `key_pair_name` matches an existing EC2 key pair
 
    ### step 2.1 -Verify the key pair exists in your AWS account:
 
