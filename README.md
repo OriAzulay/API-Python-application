@@ -162,7 +162,10 @@ GET /logs?page=1&limit=10
 ```bash
 docker build -t fastapi-app:latest .
 ```
-
+```bash
+docker login
+``` 
+  
 ### Run the Container
 
 ```bash

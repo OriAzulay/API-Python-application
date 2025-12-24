@@ -46,7 +46,7 @@ while [ $UPDATE_RETRY_COUNT -lt $MAX_UPDATE_RETRIES ]; do
     else
         if [ $UPDATE_RETRY_COUNT -lt $MAX_UPDATE_RETRIES ]; then
             WAIT_TIME=$((UPDATE_RETRY_COUNT * 15))
-            log "System update failed. Retrying in ${WAIT_TIME} seconds..."
+            log "System update failed. Retrying in $${WAIT_TIME} seconds..."
             sleep $WAIT_TIME
         else
             error_exit "System update failed after $MAX_UPDATE_RETRIES attempts"
@@ -71,7 +71,7 @@ while [ $INSTALL_RETRY_COUNT -lt $MAX_INSTALL_RETRIES ]; do
     else
         if [ $INSTALL_RETRY_COUNT -lt $MAX_INSTALL_RETRIES ]; then
             WAIT_TIME=$((INSTALL_RETRY_COUNT * 15))
-            log "Package installation failed. Retrying in ${WAIT_TIME} seconds..."
+            log "Package installation failed. Retrying in $${WAIT_TIME} seconds..."
             sleep $WAIT_TIME
         else
             error_exit "Package installation failed after $MAX_INSTALL_RETRIES attempts"
@@ -99,7 +99,7 @@ MAX_WAIT=60
 WAIT_COUNT=0
 while ! docker info > /dev/null 2>&1; do
     if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
-        log "ERROR: Docker service did not start within ${MAX_WAIT} seconds"
+        log "ERROR: Docker service did not start within $${MAX_WAIT} seconds"
         exit 1
     fi
     sleep 2
@@ -117,50 +117,61 @@ if ! cd /opt/app; then
     error_exit "Failed to change to application directory"
 fi
 
-# Create Dockerfile from existing file
-log "Creating Dockerfile..."
-if ! cat > Dockerfile << 'DOCKERFILE'
-${dockerfile_content}
-DOCKERFILE
-then
-    error_exit "Failed to create Dockerfile"
+# Install AWS CLI if not available
+if ! command -v aws &> /dev/null; then
+    log "Installing AWS CLI..."
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -q awscliv2.zip
+    ./aws/install
+    rm -rf aws awscliv2.zip
 fi
 
-# Verify Dockerfile was created and has content
+# Download files from S3
+log "Downloading application files from S3..."
+MAX_DOWNLOAD_RETRIES=3
+DOWNLOAD_RETRY_COUNT=0
+DOWNLOAD_SUCCESS=false
+
+while [ $DOWNLOAD_RETRY_COUNT -lt $MAX_DOWNLOAD_RETRIES ]; do
+    DOWNLOAD_RETRY_COUNT=$((DOWNLOAD_RETRY_COUNT + 1))
+    log "Download attempt $DOWNLOAD_RETRY_COUNT/$MAX_DOWNLOAD_RETRIES..."
+    
+    if aws s3 cp s3://${s3_bucket_name}/Dockerfile /opt/app/Dockerfile && \
+       aws s3 cp s3://${s3_bucket_name}/requirements.txt /opt/app/requirements.txt && \
+       aws s3 cp s3://${s3_bucket_name}/app.py /opt/app/app.py; then
+        DOWNLOAD_SUCCESS=true
+        log "Files downloaded successfully"
+        break
+    else
+        if [ $DOWNLOAD_RETRY_COUNT -lt $MAX_DOWNLOAD_RETRIES ]; then
+            WAIT_TIME=$((DOWNLOAD_RETRY_COUNT * 10))
+            log "Download failed. Retrying in $${WAIT_TIME} seconds..."
+            sleep $WAIT_TIME
+        else
+            error_exit "Failed to download files from S3 after $MAX_DOWNLOAD_RETRIES attempts"
+        fi
+    fi
+done
+
+if [ "$DOWNLOAD_SUCCESS" = false ]; then
+    error_exit "Failed to download application files from S3"
+fi
+
+# Verify files were downloaded
 if [ ! -f Dockerfile ] || [ ! -s Dockerfile ]; then
     error_exit "Dockerfile is missing or empty"
 fi
-log "Dockerfile created successfully ($(wc -l < Dockerfile) lines)"
+log "Dockerfile downloaded successfully ($(wc -l < Dockerfile) lines)"
 
-# Create requirements.txt from existing file
-log "Creating requirements.txt..."
-if ! cat > requirements.txt << 'REQUIREMENTS'
-${requirements_content}
-REQUIREMENTS
-then
-    error_exit "Failed to create requirements.txt"
-fi
-
-# Verify requirements.txt was created and has content
 if [ ! -f requirements.txt ] || [ ! -s requirements.txt ]; then
     error_exit "requirements.txt is missing or empty"
 fi
-log "requirements.txt created successfully ($(wc -l < requirements.txt) lines)"
+log "requirements.txt downloaded successfully ($(wc -l < requirements.txt) lines)"
 
-# Create app.py from embedded content
-log "Creating app.py..."
-if ! cat > app.py << 'APPFILE'
-${app_py_content}
-APPFILE
-then
-    error_exit "Failed to create app.py"
-fi
-
-# Verify app.py was created and has content
 if [ ! -f app.py ] || [ ! -s app.py ]; then
     error_exit "app.py is missing or empty"
 fi
-log "app.py created successfully ($(wc -l < app.py) lines)"
+log "app.py downloaded successfully ($(wc -l < app.py) lines)"
 
 # Build Docker image with retry logic and network error detection
 log "Building Docker image..."
@@ -177,7 +188,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         log "WARNING: Network connectivity issue detected before build"
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             WAIT_TIME=$((RETRY_COUNT * 20))
-            log "Waiting ${WAIT_TIME} seconds for network to recover..."
+            log "Waiting $${WAIT_TIME} seconds for network to recover..."
             sleep $WAIT_TIME
             continue
         else
@@ -204,7 +215,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             WAIT_TIME=$((RETRY_COUNT * 10))
-            log "Docker build failed (exit code: $BUILD_EXIT_CODE). Retrying in ${WAIT_TIME} seconds..."
+            log "Docker build failed (exit code: $BUILD_EXIT_CODE). Retrying in $${WAIT_TIME} seconds..."
             log "Build error summary: $(echo "$BUILD_OUTPUT" | tail -5 | tr '\n' ' ')"
             sleep $WAIT_TIME
         else
@@ -255,7 +266,7 @@ while [ $HEALTH_CHECK_COUNT -lt $MAX_HEALTH_CHECKS ]; do
     fi
     
     # Check if application is responding
-    CURL_OUTPUT=$(curl -f -s -w "\n%{http_code}" http://localhost:5000/status 2>&1)
+    CURL_OUTPUT=$(curl -f -s -w "\n%%{http_code}" http://localhost:5000/status 2>&1)
     CURL_EXIT_CODE=$?
     HTTP_CODE=$(echo "$CURL_OUTPUT" | tail -1)
     
@@ -280,7 +291,7 @@ while [ $HEALTH_CHECK_COUNT -lt $MAX_HEALTH_CHECKS ]; do
         fi
         
         if [ $HEALTH_CHECK_COUNT -lt $MAX_HEALTH_CHECKS ]; then
-            log "Retrying health check (attempt $HEALTH_CHECK_COUNT/$MAX_HEALTH_CHECKS) in ${HEALTH_CHECK_INTERVAL} seconds..."
+            log "Retrying health check (attempt $HEALTH_CHECK_COUNT/$MAX_HEALTH_CHECKS) in $${HEALTH_CHECK_INTERVAL} seconds..."
             sleep $HEALTH_CHECK_INTERVAL
         fi
     fi
@@ -295,7 +306,7 @@ fi
 
 # Final verification
 log "Performing final verification..."
-VERIFY_OUTPUT=$(curl -f -s -w "\n%{http_code}" http://localhost:5000/status 2>&1)
+VERIFY_OUTPUT=$(curl -f -s -w "\n%%{http_code}" http://localhost:5000/status 2>&1)
 VERIFY_EXIT_CODE=$?
 VERIFY_HTTP_CODE=$(echo "$VERIFY_OUTPUT" | tail -1)
 VERIFY_BODY=$(echo "$VERIFY_OUTPUT" | head -n -1)
