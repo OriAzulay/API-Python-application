@@ -132,13 +132,22 @@ MAX_DOWNLOAD_RETRIES=3
 DOWNLOAD_RETRY_COUNT=0
 DOWNLOAD_SUCCESS=false
 
+# Create app package directory
+mkdir -p /opt/app/app
+
 while [ $DOWNLOAD_RETRY_COUNT -lt $MAX_DOWNLOAD_RETRIES ]; do
     DOWNLOAD_RETRY_COUNT=$((DOWNLOAD_RETRY_COUNT + 1))
     log "Download attempt $DOWNLOAD_RETRY_COUNT/$MAX_DOWNLOAD_RETRIES..."
     
     if aws s3 cp s3://${s3_bucket_name}/Dockerfile /opt/app/Dockerfile && \
        aws s3 cp s3://${s3_bucket_name}/requirements.txt /opt/app/requirements.txt && \
-       aws s3 cp s3://${s3_bucket_name}/app.py /opt/app/app.py; then
+       aws s3 cp s3://${s3_bucket_name}/app/__init__.py /opt/app/app/__init__.py && \
+       aws s3 cp s3://${s3_bucket_name}/app/config.py /opt/app/app/config.py && \
+       aws s3 cp s3://${s3_bucket_name}/app/database.py /opt/app/app/database.py && \
+       aws s3 cp s3://${s3_bucket_name}/app/schemas.py /opt/app/app/schemas.py && \
+       aws s3 cp s3://${s3_bucket_name}/app/dependencies.py /opt/app/app/dependencies.py && \
+       aws s3 cp s3://${s3_bucket_name}/app/routes.py /opt/app/app/routes.py && \
+       aws s3 cp s3://${s3_bucket_name}/app/main.py /opt/app/app/main.py; then
         DOWNLOAD_SUCCESS=true
         log "Files downloaded successfully"
         break
@@ -168,10 +177,13 @@ if [ ! -f requirements.txt ] || [ ! -s requirements.txt ]; then
 fi
 log "requirements.txt downloaded successfully ($(wc -l < requirements.txt) lines)"
 
-if [ ! -f app.py ] || [ ! -s app.py ]; then
-    error_exit "app.py is missing or empty"
-fi
-log "app.py downloaded successfully ($(wc -l < app.py) lines)"
+# Verify app package files
+for file in __init__.py config.py database.py schemas.py dependencies.py routes.py main.py; do
+    if [ ! -f "app/$file" ] || [ ! -s "app/$file" ]; then
+        error_exit "app/$file is missing or empty"
+    fi
+    log "app/$file downloaded successfully ($(wc -l < app/$file) lines)"
+done
 
 # Build Docker image with retry logic and network error detection
 log "Building Docker image..."
