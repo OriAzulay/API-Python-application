@@ -16,32 +16,38 @@ A Python FastAPI application with shared state management, logging, and API key 
 
 ```
 .
-├── app/                      # Application package
-│   ├── __init__.py          # Package initializer
-│   ├── main.py              # FastAPI application factory
-│   ├── routes.py            # API endpoint definitions
-│   ├── schemas.py           # Pydantic request/response models
-│   ├── database.py          # SQLite database operations
-│   ├── dependencies.py      # Authentication dependencies
-│   └── config.py            # Application configuration
-├── tests/                    # Test suite
-│   ├── unit/                # Unit tests
-│   ├── integration/         # Integration tests
-│   └── e2e/                 # End-to-end tests
-├── terraform/               # Infrastructure as Code
-│   ├── ec2.tf              # EC2 instance and security group
-│   ├── s3.tf               # S3 bucket for app files
-│   ├── iam.tf              # IAM roles and policies
-│   ├── variables.tf        # Variable definitions
-│   ├── outputs.tf          # Output definitions
-│   ├── locals.tf           # Local values (IP detection)
-│   ├── providers.tf        # AWS provider configuration
-│   ├── versions.tf         # Terraform version constraints
-│   ├── user_data.sh.tpl    # EC2 bootstrap script
-│   └── terraform.tfvars    # Variable values
-├── Dockerfile              # Multi-stage Docker build
-├── requirements.txt        # Python dependencies
-└── README.md              # This file
+├── app/                          # Application package
+│   ├── __init__.py              # Package initializer
+│   ├── main.py                  # FastAPI application factory with lifespan
+│   ├── routes.py                # API endpoint definitions (/status, /update, /logs)
+│   ├── schemas.py               # Pydantic request/response models with validation
+│   ├── database.py              # SQLite database operations (CRUD + logging)
+│   ├── dependencies.py          # Authentication dependency (API key verification)
+│   └── config.py                # Application configuration and settings
+├── tests/                        # Comprehensive test suite
+│   ├── conftest.py              # Shared pytest fixtures (client, auth, temp_db)
+│   ├── unit/                    # Unit tests (isolated component testing)
+│   │   ├── test_database.py     # Database function tests
+│   │   └── test_schemas.py      # Pydantic model validation tests
+│   ├── integration/             # Integration tests (API endpoint testing)
+│   │   └── test_api.py          # Full API endpoint tests with authentication
+│   └── e2e/                     # End-to-end tests (workflow testing)
+│       ├── test_workflows.py    # Complete user workflow tests
+│       └── test_deployed.py     # Live AWS deployment tests
+├── terraform/                    # Infrastructure as Code
+│   ├── ec2.tf                   # EC2 instance and security group
+│   ├── s3.tf                    # S3 bucket for app files
+│   ├── iam.tf                   # IAM roles and policies
+│   ├── variables.tf             # Variable definitions
+│   ├── outputs.tf               # Output definitions
+│   ├── locals.tf                # Local values (IP detection)
+│   ├── providers.tf             # AWS provider configuration
+│   ├── versions.tf              # Terraform version constraints
+│   ├── user_data.sh.tpl         # EC2 bootstrap script with error handling
+│   └── terraform.tfvars         # Variable values (git-ignored)
+├── Dockerfile                   # Multi-stage Docker build
+├── requirements.txt             # Python dependencies
+└── README.md                    # This file
 ```
 
 ---
@@ -376,67 +382,6 @@ Type `yes` when prompted. This will:
 
 ---
 
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# All tests
-pytest
-
-# Unit tests only
-pytest tests/unit/
-
-# Integration tests only
-pytest tests/integration/
-
-# With coverage
-pytest --cov=app
-```
-
-### Using curl
-
-```bash
-# Get status
-curl http://localhost:5000/status
-
-# Update state
-curl -X POST http://localhost:5000/update \
-  -H "X-API-Key: your-secret-api-key-12345" \
-  -H "Content-Type: application/json" \
-  -d '{"counter": 10, "message": "Hello from API"}'
-
-# Get logs with pagination
-curl "http://localhost:5000/logs?page=1&limit=10"
-```
-
-### Using Python
-
-```python
-import requests
-
-base_url = "http://localhost:5000"
-api_key = "your-secret-api-key-12345"
-
-# Get status
-response = requests.get(f"{base_url}/status")
-print(response.json())
-
-# Update state
-response = requests.post(
-    f"{base_url}/update",
-    headers={"X-API-Key": api_key},
-    json={"counter": 5, "message": "Test message"}
-)
-print(response.json())
-
-# Get logs
-response = requests.get(f"{base_url}/logs?page=1&limit=10")
-print(response.json())
-```
-
----
-
 ## 🗄️ Database
 
 The application uses SQLite for persistent storage:
@@ -556,6 +501,239 @@ The application uses SQLite for persistent storage:
 - Wait 3-5 minutes after deployment
 - Check if your IP changed (re-run `terraform apply`)
 - Verify instance is running: `aws ec2 describe-instances --region us-east-1`
+
+---
+
+## 🧪 Testing
+
+The project includes a comprehensive test suite organized into three levels: unit tests, integration tests, and end-to-end tests.
+
+### Running Tests
+
+```bash
+# Install test dependencies (included in requirements.txt)
+pip install -r requirements.txt
+
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test levels
+pytest tests/unit/           # Unit tests only
+pytest tests/integration/    # Integration tests only
+pytest tests/e2e/            # End-to-end tests only
+
+# Run with coverage report
+pytest --cov=app --cov-report=html
+
+# Run a specific test file
+pytest tests/unit/test_database.py -v
+
+# Run a specific test class
+pytest tests/unit/test_schemas.py::TestUpdateRequest -v
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Shared fixtures for all tests
+├── unit/
+│   ├── test_database.py     # Database function tests
+│   └── test_schemas.py      # Pydantic validation tests
+├── integration/
+│   └── test_api.py          # API endpoint tests
+└── e2e/
+    ├── test_workflows.py    # Complete workflow tests
+    └── test_deployed.py     # Live deployment tests
+```
+
+---
+
+### Shared Fixtures (`conftest.py`)
+
+Provides reusable test fixtures for all test files:
+
+| Fixture | Scope | Description |
+|---------|-------|-------------|
+| `api_key` | session | Returns the configured API key for authenticated requests |
+| `client` | function | FastAPI TestClient with proper lifespan management |
+| `auth_headers` | function | Pre-configured `{"X-API-Key": ...}` headers |
+| `temp_db` | function | Creates isolated temporary SQLite database, cleans up after test |
+| `clean_state` | function | Resets shared state to known values before test |
+
+---
+
+### Unit Tests
+
+#### `tests/unit/test_database.py`
+
+Tests the SQLite database operations in isolation using temporary databases.
+
+| Test Class | Tests | Description |
+|------------|-------|-------------|
+| `TestInitDb` | 4 tests | Database initialization and table creation |
+| `TestGetCurrentState` | 3 tests | State retrieval function |
+| `TestUpdateState` | 6 tests | State update and logging |
+| `TestGetLogs` | 6 tests | Log retrieval and pagination |
+
+**Key tests:**
+- `test_creates_shared_state_table` - Verifies `shared_state` table is created
+- `test_creates_update_logs_table` - Verifies `update_logs` table is created
+- `test_initial_state_has_default_values` - Counter starts at 0, message is empty
+- `test_updates_counter_only` - Updates counter without affecting message
+- `test_preserves_unchanged_field` - Partial updates don't overwrite other fields
+- `test_creates_log_entry` - Every update creates a log entry
+- `test_respects_limit` - Pagination limit is honored
+- `test_total_pages_calculation` - Correct page count calculation
+
+#### `tests/unit/test_schemas.py`
+
+Tests Pydantic model validation rules.
+
+| Test Class | Tests | Description |
+|------------|-------|-------------|
+| `TestUpdateRequest` | 10 tests | Request validation rules |
+| `TestStatusResponse` | 2 tests | Response model structure |
+| `TestLogEntry` | 2 tests | Log entry model |
+| `TestLogsResponse` | 2 tests | Paginated logs response |
+
+**Key tests:**
+- `test_counter_must_be_integer` - Rejects non-integer counter values
+- `test_message_must_be_string` - Rejects non-string message values
+- `test_at_least_one_field_required` - Empty requests are rejected
+- `test_zero_counter_is_valid` - Zero is a valid counter value
+- `test_negative_counter_is_valid` - Negative counters are allowed
+- `test_empty_message_is_valid` - Empty string is valid for message
+
+---
+
+### Integration Tests
+
+#### `tests/integration/test_api.py`
+
+Tests API endpoints with the FastAPI TestClient.
+
+| Test Class | Tests | Description |
+|------------|-------|-------------|
+| `TestRootEndpoint` | 4 tests | Root endpoint (`/`) behavior |
+| `TestStatusEndpoint` | 6 tests | GET `/status` endpoint |
+| `TestUpdateEndpoint` | 9 tests | POST `/update` endpoint |
+| `TestLogsEndpoint` | 11 tests | GET `/logs` endpoint |
+| `TestAuthenticationDependency` | 2 tests | API key authentication behavior |
+
+**Key tests:**
+- `test_requires_api_key` - Update endpoint requires X-API-Key header
+- `test_rejects_invalid_api_key` - Wrong API key returns 401
+- `test_update_counter_only` - Can update just the counter
+- `test_update_message_only` - Can update just the message
+- `test_returns_old_and_new_state` - Response includes before/after values
+- `test_empty_request_rejected` - Empty JSON body returns 422
+- `test_default_pagination` - Default page=1, limit=10
+- `test_limit_too_high` - Limit > 100 is rejected
+- `test_case_sensitive_header_name` - Header names are case-insensitive
+
+---
+
+### End-to-End Tests
+
+#### `tests/e2e/test_workflows.py`
+
+Tests complete user workflows and scenarios.
+
+| Test Class | Tests | Description |
+|------------|-------|-------------|
+| `TestStateUpdateWorkflow` | 3 tests | Update → Verify workflows |
+| `TestLoggingWorkflow` | 4 tests | Update → Log verification |
+| `TestErrorRecoveryWorkflow` | 3 tests | Error handling and recovery |
+| `TestConcurrentAccessSimulation` | 2 tests | Rapid sequential operations |
+| `TestApiDiscoverability` | 3 tests | API documentation availability |
+
+**Key tests:**
+- `test_update_then_verify_status` - Full update and verification cycle
+- `test_multiple_updates_last_wins` - Sequential updates result in last value
+- `test_partial_update_preserves_other_field` - Counter-only update keeps message
+- `test_updates_create_log_entries` - Each update adds to log
+- `test_log_entry_contains_update_details` - Logs have old/new values
+- `test_logs_ordered_by_timestamp_desc` - Newest logs first
+- `test_pagination_workflow` - Multi-page log navigation
+- `test_invalid_update_does_not_change_state` - Failed requests don't modify state
+- `test_consecutive_operations_after_error` - System recovers after errors
+- `test_rapid_sequential_updates` - Handles rapid requests
+- `test_openapi_schema_available` - `/openapi.json` is accessible
+
+#### `tests/e2e/test_deployed.py`
+
+Tests against the live AWS deployment (requires running EC2 instance).
+
+| Test Class | Tests | Description |
+|------------|-------|-------------|
+| `TestDeployedInstance` | 7 tests | Live endpoint verification |
+| `TestDeployedHealthCheck` | 2 tests | Performance and health checks |
+
+**Key tests:**
+- `test_instance_is_reachable` - EC2 instance responds
+- `test_status_endpoint` - `/status` works on deployed instance
+- `test_update_with_auth` - Authenticated updates work
+- `test_status_reflects_update` - State persists on AWS
+- `test_response_time` - Response under 2 seconds
+- `test_uptime_positive` - Application uptime is tracked
+
+**Running deployed tests:**
+```bash
+# After terraform apply:
+pytest tests/e2e/test_deployed.py -v
+
+# Or with explicit URL:
+API_URL=http://1.2.3.4:5000 API_KEY=your-key pytest tests/e2e/test_deployed.py -v
+```
+
+---
+
+### Manual API Testing
+
+#### Using curl
+
+```bash
+# Get status
+curl http://localhost:5000/status
+
+# Update state
+curl -X POST http://localhost:5000/update \
+  -H "X-API-Key: your-secret-api-key-12345" \
+  -H "Content-Type: application/json" \
+  -d '{"counter": 10, "message": "Hello from API"}'
+
+# Get logs with pagination
+curl "http://localhost:5000/logs?page=1&limit=10"
+```
+
+#### Using Python
+
+```python
+import requests
+
+base_url = "http://localhost:5000"
+api_key = "your-secret-api-key-12345"
+
+# Get status
+response = requests.get(f"{base_url}/status")
+print(response.json())
+
+# Update state
+response = requests.post(
+    f"{base_url}/update",
+    headers={"X-API-Key": api_key},
+    json={"counter": 5, "message": "Test message"}
+)
+print(response.json())
+
+# Get logs
+response = requests.get(f"{base_url}/logs?page=1&limit=10")
+print(response.json())
+```
 
 ---
 

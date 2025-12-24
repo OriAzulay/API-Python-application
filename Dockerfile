@@ -23,7 +23,7 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 
 # Copy application code
-COPY app.py .
+COPY app/ ./app/
 
 # Make sure scripts in .local are usable
 ENV PATH=/root/.local/bin:$PATH
@@ -32,4 +32,4 @@ ENV PATH=/root/.local/bin:$PATH
 EXPOSE 5000
 
 # Run the application on port 5000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"]
