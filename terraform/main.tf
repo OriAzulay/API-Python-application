@@ -85,9 +85,11 @@ resource "aws_instance" "app_server" {
 
   # User data script to install Docker, build and run the container
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
-    app_name      = var.app_name
-    api_key       = var.api_key
-    app_py_content = file("${path.module}/../app.py")
+    app_name           = var.app_name
+    api_key            = var.api_key
+    app_py_content     = file("${path.module}/../app.py")
+    dockerfile_content = file("${path.module}/../Dockerfile")
+    requirements_content = file("${path.module}/../requirements.txt")
   })
 
   tags = {
