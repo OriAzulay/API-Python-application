@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:  # Allow manual trigger
 
+# Prevent concurrent deployments
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 env:
   PYTHON_VERSION: "3.11"
   TF_VERSION: "1.6.0"
@@ -60,6 +65,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false  # Required for capturing outputs
 
       - name: Create terraform.tfvars
         working-directory: terraform
@@ -74,7 +80,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: terraform
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Validate
         working-directory: terraform
@@ -82,11 +88,11 @@ jobs:
 
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan -out=tfplan
+        run: terraform plan -input=false -out=tfplan
 
       - name: Terraform Apply
         working-directory: terraform
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve -input=false tfplan
 
       - name: Get deployment outputs
         working-directory: terraform
@@ -119,7 +125,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Wait for instance initialization
-        run: sleep 180  # Wait 3 minutes for EC2 to be ready
+        run: |
+          echo "Waiting 3 minutes for EC2 instance to initialize..."
+          sleep 180
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -128,8 +136,7 @@ jobs:
           cache: "pip"
 
       - name: Install test dependencies
-        run: |
-          pip install pytest requests
+        run: pip install pytest requests
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -138,17 +145,45 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
       - name: Get API URL from Terraform
         working-directory: terraform
         id: get-url
         run: |
-          terraform init
+          terraform init -input=false
           API_URL=$(terraform output -raw api_url)
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Health check with retries
+        run: |
+          API_URL="${{ steps.get-url.outputs.api_url }}"
+          echo "Testing: $API_URL/status"
+          for i in {1..10}; do
+            if curl -sf "$API_URL/status" > /dev/null; then
+              echo "✅ API is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 30s..."
+            sleep 30
+          done
+          echo "❌ API health check failed after 10 attempts"
+          exit 1
 
       - name: Run deployed tests
         env:
           API_URL: ${{ steps.get-url.outputs.api_url }}
           API_KEY: ${{ secrets.API_KEY }}
         run: pytest tests/e2e/test_deployed.py -v --tb=short
+
+      - name: Smoke test summary
+        if: always()
+        run: |
+          echo "## 🧪 Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "API URL: ${{ steps.get-url.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
 
