@@ -737,3 +737,115 @@ print(response.json())
 
 ---
 
+## 🔄 CI/CD Pipeline
+
+The project includes GitHub Actions workflows for continuous integration and deployment.
+
+### Pipeline Architecture
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Push/PR   │────▶│  Run Tests  │────▶│   Deploy    │
+│  to GitHub  │     │   (CI)      │     │   (CD)      │
+└─────────────┘     └─────────────┘     └─────────────┘
+                          │                    │
+                   On every PR           Only on main
+                   & push                branch merge
+```
+
+### Workflows
+
+| Workflow | Trigger | Actions |
+|----------|---------|---------|
+| `ci.yml` | Push/PR to any branch | Run tests, lint code, build Docker image |
+| `deploy.yml` | Push to `main` | Run tests → Deploy to AWS → Smoke test |
+
+### CI Workflow (`ci.yml`)
+
+Runs on every push and pull request:
+
+1. **Test Job**: Runs pytest (unit, integration, e2e tests)
+2. **Lint Job**: Runs Ruff linter for code quality
+3. **Docker Build Job**: Verifies Docker image builds successfully
+
+### Deploy Workflow (`deploy.yml`)
+
+Runs only on push to `main` branch:
+
+1. **Test Job**: Runs all tests (must pass)
+2. **Deploy Job**: 
+   - Configures AWS credentials
+   - Creates `terraform.tfvars` from secrets
+   - Runs `terraform init`, `validate`, `plan`, `apply`
+3. **Smoke Test Job**:
+   - Waits for EC2 initialization
+   - Health check with retries
+   - Runs deployed API tests
+
+### Setup GitHub Secrets
+
+Go to your GitHub repo → **Settings** → **Secrets and variables** → **Actions**
+
+Add these required secrets:
+
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `AWS_ACCESS_KEY_ID` | AWS IAM access key | `AKIA...` |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key | `wJalr...` |
+| `AWS_KEY_PAIR_NAME` | EC2 key pair name | `fastapi-app-key` |
+| `API_KEY` | Application API key | `prod-xxxx-xxxx-xxxx` |
+
+### Terraform Remote State
+
+The CI/CD pipeline uses S3 backend for Terraform state management:
+
+```
+terraform/
+├── backend.tf           # S3 backend configuration
+└── bootstrap/           # One-time state infrastructure setup
+    ├── versions.tf      # Terraform version constraints
+    ├── providers.tf     # AWS provider configuration
+    ├── s3.tf            # S3 bucket for state storage
+    ├── dynamodb.tf      # DynamoDB table for state locking
+    └── outputs.tf       # Output values
+```
+
+**First-time setup** (run once locally):
+
+```powershell
+cd terraform/bootstrap
+terraform init
+terraform apply
+```
+
+This creates:
+- S3 bucket for Terraform state (Free Tier)
+- DynamoDB table for state locking (Free Tier)
+
+### Testing the Pipeline
+
+1. **Test CI workflow**: Create a pull request or push to any branch
+2. **Test Deploy workflow**: Push to `main` branch or use manual trigger
+
+```powershell
+# Push changes to trigger pipeline
+git add .
+git commit -m "Your commit message"
+git push origin main
+```
+
+### Monitor Pipeline
+
+- Go to your GitHub repo → **Actions** tab
+- View workflow runs, logs, and deployment summaries
+
+### Manual Deployment Trigger
+
+The deploy workflow supports manual triggering:
+
+1. Go to **Actions** → **Deploy to Production**
+2. Click **Run workflow**
+3. Select branch and click **Run workflow**
+
+---
+
