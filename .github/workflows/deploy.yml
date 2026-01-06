@@ -1,0 +1,154 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  PYTHON_VERSION: "3.11"
+  TF_VERSION: "1.6.0"
+  AWS_REGION: "us-east-1"
+
+jobs:
+  # ============================================================================
+  # Test Job - Must pass before deployment
+  # ============================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run all tests
+        run: pytest tests/unit/ tests/integration/ tests/e2e/test_workflows.py -v --tb=short
+
+  # ============================================================================
+  # Deploy Job - Only runs after tests pass
+  # ============================================================================
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    needs: test  # Wait for tests to pass
+    environment: production  # Requires approval if configured
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Create terraform.tfvars
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars << EOF
+          aws_region     = "${{ env.AWS_REGION }}"
+          app_name       = "fastapi-app"
+          instance_type  = "t3.micro"
+          key_pair_name  = "${{ secrets.AWS_KEY_PAIR_NAME }}"
+          api_key        = "${{ secrets.API_KEY }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get deployment outputs
+        working-directory: terraform
+        id: outputs
+        run: |
+          echo "api_url=$(terraform output -raw api_url)" >> $GITHUB_OUTPUT
+          echo "instance_ip=$(terraform output -raw instance_public_ip)" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| API URL | ${{ steps.outputs.outputs.api_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Instance IP | ${{ steps.outputs.outputs.instance_ip }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⏱️ Wait 3-5 minutes for the instance to initialize." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Smoke Test - Verify deployment works
+  # ============================================================================
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for instance initialization
+        run: sleep 180  # Wait 3 minutes for EC2 to be ready
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest requests
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get API URL from Terraform
+        working-directory: terraform
+        id: get-url
+        run: |
+          terraform init
+          API_URL=$(terraform output -raw api_url)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+      - name: Run deployed tests
+        env:
+          API_URL: ${{ steps.get-url.outputs.api_url }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: pytest tests/e2e/test_deployed.py -v --tb=short
+

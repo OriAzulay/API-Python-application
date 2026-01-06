@@ -53,15 +53,15 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-# Ingress: FastAPI Application (port 5000)
+# Ingress: FastAPI Application (port 5000) - Public access for production
 resource "aws_vpc_security_group_ingress_rule" "app" {
   security_group_id = aws_security_group.app_sg.id
-  description       = "FastAPI Application"
+  description       = "FastAPI Application - Public Access"
 
   from_port   = 5000
   to_port     = 5000
   ip_protocol = "tcp"
-  cidr_ipv4   = local.my_ip_cidr
+  cidr_ipv4   = "0.0.0.0/0"  # Open to all users (API key required for updates)
 
   tags = {
     Name = "${var.app_name}-app-ingress"
