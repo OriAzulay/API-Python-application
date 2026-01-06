@@ -84,11 +84,12 @@ class TestLoggingWorkflow:
         initial_count = initial_logs["total"]
         
         # Make an update
-        client.post(
+        response = client.post(
             "/update",
             json={"counter": 42, "message": "Log test"},
             headers=auth_headers
         )
+        assert response.status_code == 200, f"Update failed: {response.text}"
         
         # Verify log count increased
         updated_logs = client.get("/logs").json()
@@ -101,14 +102,15 @@ class TestLoggingWorkflow:
         unique_counter = int(time.time()) % 100000
         
         # Make update with unique values
-        client.post(
+        response = client.post(
             "/update",
             json={"counter": unique_counter, "message": unique_marker},
             headers=auth_headers
         )
+        assert response.status_code == 200, f"Update failed: {response.text}"
         
         # Find our log entry by searching recent logs
-        logs = client.get("/logs?limit=20").json()
+        logs = client.get("/logs?limit=50").json()
         
         # Find the entry with our unique marker
         found = False
